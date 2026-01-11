@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, Search, Upload, Loader2, Sparkles, BookOpen, Clock, Tag, Table, Trash2, RefreshCw } from 'lucide-react';
+import { Database, Search, Upload, Loader2, Sparkles, BookOpen, Clock, Table, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './components/ui/card';
@@ -7,19 +7,31 @@ import { IngestionService } from './lib/ingestion';
 import { SearchService, type SearchResult } from './lib/search';
 import { EmbeddingService } from './lib/embeddings';
 import { cn } from './lib/utils';
+import { AnswerService } from './lib/answer';
 import { VectorDatabase } from './lib/pglite';
+
+// Define a type for the data we expect from the database
+interface DocumentRow {
+  id: number;
+  content: string;
+  embedding: number[];
+  created_at: string;
+  metadata: Record<string, unknown>;
+}
 
 export default function App() {
   const [ingestText, setIngestText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [generatedAnswer, setGeneratedAnswer] = useState<string>('');
   const [isIngesting, setIsIngesting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isAnswering, setIsAnswering] = useState(false);
   const [modelProgress, setModelProgress] = useState(0);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [status, setStatus] = useState<string>('Ready');
   const [activeTab, setActiveTab] = useState<'rag' | 'db'>('rag');
-  const [dbData, setDbData] = useState<any[]>([]);
+  const [dbData, setDbData] = useState<DocumentRow[]>([]);
   const [isDbLoading, setIsDbLoading] = useState(false);
 
   useEffect(() => {
@@ -77,11 +89,25 @@ export default function App() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
-    setStatus('Searching...');
+    setGeneratedAnswer('');
+    setResults([]);
+    setStatus('Searching for relevant documents...');
     try {
-      const searchResults = await SearchService.search(searchQuery);
+      const searchResults = await SearchService.search(searchQuery, 5);
       setResults(searchResults);
-      setStatus(`Found ${searchResults.length} results`);
+      setStatus(`Found ${searchResults.length} relevant documents.`);
+
+      if (searchResults.length > 0) {
+        setIsAnswering(true);
+        setStatus('Generating answer...');
+        const context = searchResults.map(r => r.content);
+        const answer = await AnswerService.answer(searchQuery, context, (progress: number) => {
+          setModelProgress(progress);
+        });
+        setGeneratedAnswer(answer);
+        setStatus('Answer Ready');
+        setIsAnswering(false);
+      }
     } catch (error) {
       console.error(error);
       setStatus('Search Failed');
@@ -95,7 +121,7 @@ export default function App() {
     try {
       const db = await VectorDatabase.getInstance();
       const result = await db.query('SELECT * FROM documents ORDER BY id DESC LIMIT 50');
-      const formatted = result.rows.map((row: any) => ({
+      const formatted = result.rows.map((row: number) => ({
         ...row,
         embedding: row.embedding ? Array.from(row.embedding) : []
       }));
@@ -114,6 +140,7 @@ export default function App() {
       await db.exec('DELETE FROM documents');
       await fetchDbData();
       setResults([]);
+      setGeneratedAnswer('');
       setStatus('Database Cleared');
     } catch (error) {
        console.error(error);
@@ -161,16 +188,16 @@ export default function App() {
               >
                 <Table className="w-3.5 h-3.5" />
                 Database Viewer
-                <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px]">BONUS</span>
+                {/* <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px]">BONUS</span> */}
               </button>
             </div>
           </div>
           
           <div className="flex items-center gap-6 text-sm font-medium">
             <div className="flex items-center gap-2 text-muted-foreground bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-              <Database className={cn("w-4 h-4", isModelLoaded ? "text-emerald-400" : "text-amber-400 animate-pulse")} />
+              <Database className={cn("w-4 h-4", isModelLoaded || isAnswering ? "text-emerald-400" : "text-amber-400 animate-pulse")} />
               <span>{status}</span>
-              {!isModelLoaded && modelProgress > 0 && (
+              {(!isModelLoaded || isAnswering) && modelProgress > 0 && (
                 <span className="text-xs ml-1 text-indigo-400">{Math.round(modelProgress)}%</span>
               )}
             </div>
@@ -221,7 +248,7 @@ export default function App() {
                 <CardFooter className="bg-black/20 border-t border-white/10 py-4 flex justify-between items-center">
                   <span className="text-xs text-muted-foreground flex items-center gap-2">
                     <Clock className="w-3 h-3" />
-                    {ingestText.length > 0 ? `${Math.ceil(ingestText.length / 500)} chunks will be created` : "Enter text to begin"}
+                    {ingestText.length > 0 ? `${Math.ceil(ingestText.length / 250)} chunks will be created` : "Enter text to begin"}
                   </span>
                   <Button 
                     onClick={handleIngest} 
@@ -244,9 +271,9 @@ export default function App() {
             {/* Right Column: Search */}
             <section className="space-y-8">
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold tracking-tight">Semantic <span className="text-purple-400">Search</span></h2>
+                <h2 className="text-3xl font-bold tracking-tight">Semantic <span className="text-purple-400">Search</span> & <span className="text-indigo-400">Answer</span></h2>
                 <p className="text-muted-foreground text-lg">
-                  Find content by meaning rather than keywords. Uses cosine similarity in PGlite.
+                  Ask a question and get a synthesized answer based on your documents.
                 </p>
               </div>
 
@@ -263,49 +290,74 @@ export default function App() {
                 </div>
                 <Button 
                   onClick={handleSearch}
-                  disabled={isSearching || !searchQuery.trim() || !isModelLoaded}
+                  disabled={isSearching || isAnswering || !searchQuery.trim() || !isModelLoaded}
                   className="bg-purple-600 hover:bg-purple-500 text-white h-12 px-6 shadow-lg shadow-purple-600/20"
                 >
-                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+                  {isSearching || isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
                 </Button>
               </div>
 
-              <div className="space-y-4 min-h-[400px]">
-                {results.length > 0 ? (
-                  results.map((result, i) => (
-                    <Card key={result.id} className="bg-white/5 border-white/10 hover:border-purple-500/30 transition-all group overflow-hidden">
-                      <div className="absolute left-0 top-0 w-1 h-full bg-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <CardHeader className="py-4 flex flex-row items-center justify-between space-y-0">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold">
-                            {i + 1}
+              <div className="space-y-6 min-h-[400px]">
+                {/* Generated Answer */}
+                {isAnswering && !generatedAnswer && (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
+                      <Sparkles className="w-8 h-8 opacity-20 animate-pulse" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium text-white/50">Generating Answer...</p>
+                      <p className="text-sm max-w-xs">The model is synthesizing an answer from the retrieved documents.</p>
+                    </div>
+                  </div>
+                )}
+                
+                {generatedAnswer && (
+                   <Card className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-indigo-400" />
+                        Synthesized Answer
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-white/90 leading-relaxed">{generatedAnswer}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Search Results / Sources */}
+                {results.length > 0 && (
+                  <div className='space-y-4 pt-4'>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Sources ({results.length})</h3>
+                    {results.map((result, i) => (
+                      <Card key={result.id} className="bg-white/5 border-white/10 hover:border-purple-500/30 transition-all group overflow-hidden">
+                        <div className="absolute left-0 top-0 w-1 h-full bg-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <CardHeader className="py-3 flex flex-row items-center justify-between space-y-0">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-[10px] font-bold">
+                              {i + 1}
+                            </div>
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                              <BookOpen className="w-3.5 h-3.5" />
+                              Source Chunk #{result.id}
+                            </CardTitle>
                           </div>
-                          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            Source Chunk
-                          </CardTitle>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold tracking-wider">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          {Math.round(result.similarity * 100)}% Match
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pb-4">
-                        <p className="text-sm text-muted-foreground leading-relaxed italic">
-                          "{result.content}"
-                        </p>
-                      </CardContent>
-                      <CardFooter className="bg-white/5 py-2 flex gap-3 flex-wrap">
-                        {Object.entries(result.metadata || {}).map(([key, value]) => (
-                          <div key={key} className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase font-medium">
-                            <Tag className="w-2.5 h-2.5" />
-                            {key}: {String(value)}
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold tracking-wider">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            {Math.round(result.similarity * 100)}% Match
                           </div>
-                        ))}
-                      </CardFooter>
-                    </Card>
-                  ))
-                ) : (
+                        </CardHeader>
+                        <CardContent className="pb-3">
+                          <p className="text-xs text-muted-foreground leading-relaxed italic">
+                            "{result.content}"
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+                
+                {!isSearching && !isAnswering && results.length === 0 && !generatedAnswer && (
                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4">
                     <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
                       <Search className="w-8 h-8 opacity-20" />
@@ -371,7 +423,7 @@ export default function App() {
                                   </div>
                                   <span className="text-[10px] text-muted-foreground font-mono">
                                     [{Array.isArray(row.embedding) 
-                                      ? row.embedding.slice(0, 3).map((n: any) => Number(n).toFixed(2)).join(',')
+                                      ? row.embedding.slice(0, 3).map((n: number) => Number(n).toFixed(2)).join(',')
                                       : '...'}]
                                   </span>
                                 </div>

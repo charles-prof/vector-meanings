@@ -4,7 +4,7 @@ import { VectorDatabase } from './pglite';
 export interface SearchResult {
   id: number;
   content: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   similarity: number;
 }
 

@@ -1,13 +1,20 @@
 import { pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
 
+// Define a type for the progress callback information
+type ProgressInfo = {
+  status: string;
+  progress?: number;
+  [key: string]: unknown; 
+};
+
 export class EmbeddingService {
   private static pipeline: FeatureExtractionPipeline | null = null;
 
   static async getPipeline(onProgress?: (progress: number) => void): Promise<FeatureExtractionPipeline> {
     if (this.pipeline) return this.pipeline;
 
-    this.pipeline = await (pipeline as any)('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-      progress_callback: (info: any) => {
+    this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+      progress_callback: (info: ProgressInfo) => {
         if (info.status === 'progress' && info.progress !== undefined) {
           onProgress?.(info.progress);
         }

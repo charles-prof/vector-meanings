@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, Search, Upload, Loader2, Sparkles, BookOpen, Clock, Table, Trash2, RefreshCw } from 'lucide-react';
+import { Database, Search, Upload, Loader2, Sparkles, BookOpen, Clock, Table, Trash2, RefreshCw, Globe } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './components/ui/card';
@@ -8,6 +8,7 @@ import { SearchService, type SearchResult } from './lib/search';
 import { EmbeddingService } from './lib/embeddings';
 import { cn } from './lib/utils';
 import { AnswerService } from './lib/answer';
+import { GeneralKnowledgeService } from './lib/general';
 import { VectorDatabase } from './lib/pglite';
 
 // Define a type for the data we expect from the database
@@ -23,10 +24,19 @@ export default function App() {
   const [ingestText, setIngestText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [generatedAnswer, setGeneratedAnswer] = useState<string>('');
+  // Local RAG answer
+  const [localAnswer, setLocalAnswer] = useState<string>('');
+  // World knowledge answer
+  const [worldAnswer, setWorldAnswer] = useState<string>('');
+  
   const [isIngesting, setIsIngesting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [isAnswering, setIsAnswering] = useState(false);
+  
+  // Loading state for local RAG answer
+  const [isAnsweringLocal, setIsAnsweringLocal] = useState(false);
+  // Loading state for world knowledge answer
+  const [isAnsweringWorld, setIsAnsweringWorld] = useState(false);
+
   const [modelProgress, setModelProgress] = useState(0);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [status, setStatus] = useState<string>('Ready');
@@ -39,7 +49,6 @@ export default function App() {
       setStatus('Loading Embedding Model...');
       try {
         await EmbeddingService.getPipeline((progress) => {
-          // Transformers.js sends progress as 0-100
           setModelProgress(progress);
         });
         setIsModelLoaded(true);
@@ -88,26 +97,42 @@ export default function App() {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
+    
+    // Reset states
     setIsSearching(true);
-    setGeneratedAnswer('');
+    setLocalAnswer('');
+    setWorldAnswer('');
     setResults([]);
-    setStatus('Searching for relevant documents...');
+    setStatus('Searching...');
+
     try {
+      // --- Local RAG Pipeline ---
       const searchResults = await SearchService.search(searchQuery, 5);
       setResults(searchResults);
       setStatus(`Found ${searchResults.length} relevant documents.`);
 
-      if (searchResults.length > 0) {
-        setIsAnswering(true);
-        setStatus('Generating answer...');
-        const context = searchResults.map(r => r.content);
-        const answer = await AnswerService.answer(searchQuery, context, (progress: number) => {
-          setModelProgress(progress);
-        });
-        setGeneratedAnswer(answer);
-        setStatus('Answer Ready');
-        setIsAnswering(false);
-      }
+      const localRagPromise = async () => {
+        if (searchResults.length > 0) {
+          setIsAnsweringLocal(true);
+          const context = searchResults.map(r => r.content);
+          const answer = await AnswerService.answer(searchQuery, context, (p) => setModelProgress(p));
+          setLocalAnswer(answer);
+          setIsAnsweringLocal(false);
+        }
+      };
+
+      // --- World Knowledge Pipeline ---
+      const worldKnowledgePromise = async () => {
+        setIsAnsweringWorld(true);
+        const answer = await GeneralKnowledgeService.answer(searchQuery, (p) => setModelProgress(p));
+        setWorldAnswer(answer);
+        setIsAnsweringWorld(false);
+      };
+
+      // Run both pipelines in parallel
+      await Promise.all([localRagPromise(), worldKnowledgePromise()]);
+      setStatus('Answers Ready');
+
     } catch (error) {
       console.error(error);
       setStatus('Search Failed');
@@ -121,7 +146,7 @@ export default function App() {
     try {
       const db = await VectorDatabase.getInstance();
       const result = await db.query('SELECT * FROM documents ORDER BY id DESC LIMIT 50');
-      const formatted = result.rows.map((row: number) => ({
+      const formatted = result.rows.map((row: DocumentRow) => ({
         ...row,
         embedding: row.embedding ? Array.from(row.embedding) : []
       }));
@@ -140,7 +165,8 @@ export default function App() {
       await db.exec('DELETE FROM documents');
       await fetchDbData();
       setResults([]);
-      setGeneratedAnswer('');
+      setLocalAnswer('');
+      setWorldAnswer('');
       setStatus('Database Cleared');
     } catch (error) {
        console.error(error);
@@ -152,6 +178,8 @@ export default function App() {
       fetchDbData();
     }
   }, [activeTab]);
+
+  const isAnswering = isAnsweringLocal || isAnsweringWorld;
 
   return (
     <div className="min-h-screen bg-[#09090b] text-[#fafafa] selection:bg-primary/30">
@@ -188,7 +216,6 @@ export default function App() {
               >
                 <Table className="w-3.5 h-3.5" />
                 Database Viewer
-                {/* <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px]">BONUS</span> */}
               </button>
             </div>
           </div>
@@ -271,9 +298,9 @@ export default function App() {
             {/* Right Column: Search */}
             <section className="space-y-8">
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold tracking-tight">Semantic <span className="text-purple-400">Search</span> & <span className="text-indigo-400">Answer</span></h2>
+                <h2 className="text-3xl font-bold tracking-tight">Hybrid <span className="text-purple-400">Search</span> & <span className="text-indigo-400">Answer</span></h2>
                 <p className="text-muted-foreground text-lg">
-                  Ask a question and get a synthesized answer based on your documents.
+                  Get answers from world knowledge and your private documents.
                 </p>
               </div>
 
@@ -284,7 +311,7 @@ export default function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="Ask a question about your documents..."
+                    placeholder="Ask a question..."
                     className="pl-10 bg-white/5 border-white/10 h-12 rounded-xl focus:ring-purple-500/50"
                   />
                 </div>
@@ -298,37 +325,65 @@ export default function App() {
               </div>
 
               <div className="space-y-6 min-h-[400px]">
-                {/* Generated Answer */}
-                {isAnswering && !generatedAnswer && (
-                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                      <Sparkles className="w-8 h-8 opacity-20 animate-pulse" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium text-white/50">Generating Answer...</p>
-                      <p className="text-sm max-w-xs">The model is synthesizing an answer from the retrieved documents.</p>
-                    </div>
+                {/* World Knowledge Answer */}
+                {isAnsweringWorld && !worldAnswer && (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4 animate-pulse">
+                    <Globe className="w-8 h-8 opacity-20" />
+                    <p className="font-medium text-white/50">Consulting world knowledge...</p>
                   </div>
                 )}
-                
-                {generatedAnswer && (
-                   <Card className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
+                {worldAnswer && (
+                   <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-indigo-400" />
-                        Synthesized Answer
+                        <Globe className="w-5 h-5 text-blue-400" />
+                        World Knowledge Answer
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-white/90 leading-relaxed">{generatedAnswer}</p>
+                      <p className="text-white/90 leading-relaxed">{worldAnswer}</p>
                     </CardContent>
                   </Card>
                 )}
 
-                {/* Search Results / Sources */}
+                {/* Local RAG Answer */}
+                {isAnsweringLocal && !localAnswer && (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4 animate-pulse">
+                    <BookOpen className="w-8 h-8 opacity-20" />
+                    <p className="font-medium text-white/50">Searching your documents...</p>
+                  </div>
+                )}
+                {localAnswer && (
+                   <Card className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-indigo-400" />
+                        Answer from Your Documents
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-white/90 leading-relaxed">{localAnswer}</p>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Fallback for no results */}
+                {!isSearching && !isAnswering && !localAnswer && !worldAnswer && results.length === 0 && (
+                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
+                      <Search className="w-8 h-8 opacity-20" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium text-white/50">No results found</p>
+                      <p className="text-sm max-w-xs">Try ingesting documents first or adjust your search query.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Source Documents */}
                 {results.length > 0 && (
-                  <div className='space-y-4 pt-4'>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Sources ({results.length})</h3>
+                  <div className='space-y-4 pt-8'>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Sources from Your Documents ({results.length})</h3>
                     {results.map((result, i) => (
                       <Card key={result.id} className="bg-white/5 border-white/10 hover:border-purple-500/30 transition-all group overflow-hidden">
                         <div className="absolute left-0 top-0 w-1 h-full bg-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -338,7 +393,6 @@ export default function App() {
                               {i + 1}
                             </div>
                             <CardTitle className="text-xs font-semibold flex items-center gap-2">
-                              <BookOpen className="w-3.5 h-3.5" />
                               Source Chunk #{result.id}
                             </CardTitle>
                           </div>
@@ -356,18 +410,7 @@ export default function App() {
                     ))}
                   </div>
                 )}
-                
-                {!isSearching && !isAnswering && results.length === 0 && !generatedAnswer && (
-                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-white/5 rounded-3xl p-12 text-center space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                      <Search className="w-8 h-8 opacity-20" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium text-white/50">No results found</p>
-                      <p className="text-sm max-w-xs">Try ingesting documents first or adjust your search query.</p>
-                    </div>
-                  </div>
-                )}
+
               </div>
             </section>
 

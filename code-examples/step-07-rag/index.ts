@@ -68,10 +68,13 @@ async function main() {
   const context = (searchResults.rows as any[]).map(r => r.content).join('\n');
   console.log('✅ Context found:', context);
 
-  // 4. Prompt Construction (RAG)
-  console.log('\n💬 Prompt for LLM:');
-  const prompt = `
-Answer the following question using ONLY the provided context.
+  // 4. LLM Generation (Local RAG)
+  // Note: While we use Transformers.js here, Google's LiteRT (formerly TFLite) 
+  // is another powerful option for running local models on-device.
+  console.log('\n🤖 Loading local LLM (Qwen1.5-0.5B-Chat)...');
+  const generator = await pipeline('text-generation', 'Xenova/Qwen1.5-0.5B-Chat');
+  
+  const prompt = `Answer the following question using ONLY the provided context. If the answer is not in the context, say you don't know.
 
 Context:
 ${context}
@@ -79,12 +82,21 @@ ${context}
 Question: ${userQuery}
 
 Answer:`;
+
+  console.log('\n💬 Generating answer...');
+  const output = await generator(prompt, {
+    max_new_tokens: 50,
+    temperature: 0.1,
+    do_sample: false,
+    return_full_text: false,
+  });
+
+  const answer = (output[0] as any).generated_text;
   
+  console.log('\n✨ RAG Answer:');
   console.log('-----------------------------------');
-  console.log(prompt);
+  console.log(answer.trim());
   console.log('-----------------------------------');
-  
-  console.log('\n✨ In a real application, you would now send this prompt to an LLM like Llama 3.');
 }
 
 main().catch(console.error);

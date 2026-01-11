@@ -22,6 +22,12 @@ This directory contains standalone TypeScript examples for each step of the **LL
    # Step 4: Ingestion & Chunking
    npm run step-04
 
+   # Step 5: Vector Storage
+   npm run step-05
+
+   # Step 6: Semantic Search
+   npm run step-06
+
    # Step 7: Complete RAG Pipeline
    npm run step-07
    ```
@@ -33,7 +39,9 @@ This directory contains standalone TypeScript examples for each step of the **LL
 | `step-01-pglite` | PGlite Setup | Extension initialization, vector columns, basic similarity. |
 | `step-03-embeddings` | Transformers.js | Pipeline usage, text-to-vector, cosine similarity. |
 | `step-04-ingestion` | Chunking | Fixed-size and recursive text splitting strategies. |
-| `step-07-rag` | RAG Pipeline | The complete flow from raw text to LLM-ready prompt. |
+| `step-05-storage` | indexing | Creating HNSW indexes specifically for performance. |
+| `step-06-search` | Ranking | Similarity search with scores and ranking. |
+| `step-07-rag` | RAG Pipeline | The complete flow from raw text to local LLM answer. |
 
 ## 🛠️ Requirements
 

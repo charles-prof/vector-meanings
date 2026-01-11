@@ -2,10 +2,13 @@
   "name": "llm-ingestion-examples",
   "version": "1.0.0",
   "description": "Code examples for the LLM Ingestion with PGlite course",
+  "type": "module",
   "scripts": {
     "step-01": "ts-node step-01-pglite/index.ts",
     "step-03": "ts-node step-03-embeddings/index.ts",
     "step-04": "ts-node step-04-ingestion/index.ts",
+    "step-05": "ts-node step-05-storage/index.ts",
+    "step-06": "ts-node step-06-search/index.ts",
     "step-07": "ts-node step-07-rag/index.ts"
   },
   "dependencies": {

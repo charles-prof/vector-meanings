@@ -8,6 +8,7 @@ This is the final project for the **LLM Ingestion with PGlite** course. It demon
 - 🗄️ **Local Vector DB**: Uses PGlite with the `pgvector` extension for persistent storage in IndexedDB.
 - 🔍 **Semantic Search**: Find documents by meaning using cosine similarity.
 - 📄 **Chunking & Ingestion**: Integrated pipeline for processing text into searchable units.
+- 📊 **Database Explorer**: Direct real-time inspection of your local Postgres tables.
 - ✨ **Premium UI**: Built with React, Tailwind CSS, and shadcn/ui for a modern developer experience.
 
 ## 🛠️ Tech Stack

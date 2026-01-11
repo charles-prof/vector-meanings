@@ -47,6 +47,7 @@ This hands-on codelab teaches you how to build **Retrieval Augmented Generation 
 | 06 | [Semantic Search](./docs/06-semantic-search.md) | Implement K-nearest neighbors search |
 | 07 | [RAG Pipeline](./docs/07-rag-pipeline.md) | Combine retrieval with LLM generation |
 | 08 | [Optimization](./docs/08-optimization.md) | Performance tuning and best practices |
+| 09 | [Database Viewer](./docs/09-database-viewer.md) | **Bonus**: Inspecting PGlite in real-time |
 
 ---
 
@@ -59,6 +60,7 @@ The course culminates in building a complete **Local Knowledge Base** applicatio
 - 🗄️ Vector storage with PGlite + pgvector
 - 🔍 Real-time semantic search
 - 💬 RAG-powered Q&A interface
+- 📊 **Real-time Database Explorer** (Inspect PGlite contents directly)
 - 🎨 Modern UI with shadcn/ui components
 
 ![Final Project Preview](./docs/assets/final-project-preview.png)

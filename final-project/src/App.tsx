@@ -19,11 +19,13 @@ export default function App() {
   const [status, setStatus] = useState<string>('Ready');
 
   useEffect(() => {
-    // Warm up the embedding model
     const init = async () => {
       setStatus('Loading Embedding Model...');
       try {
-        await EmbeddingService.getPipeline((progress) => setModelProgress(progress));
+        await EmbeddingService.getPipeline((progress) => {
+          // Transformers.js sends progress as 0-100
+          setModelProgress(progress);
+        });
         setIsModelLoaded(true);
         setStatus('Model Ready');
       } catch (error) {
@@ -34,6 +36,19 @@ export default function App() {
     init();
   }, []);
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      setIngestText(text);
+      setStatus('File loaded, ready to ingest');
+    };
+    reader.readAsText(file);
+  };
+
   const handleIngest = async () => {
     if (!ingestText.trim()) return;
     setIsIngesting(true);
@@ -41,6 +56,7 @@ export default function App() {
     try {
       await IngestionService.ingest(ingestText, { 
         timestamp: new Date().toISOString(),
+        source: 'manual_upload',
         length: ingestText.length 
       });
       setIngestText('');
@@ -87,7 +103,7 @@ export default function App() {
               <Database className={cn("w-4 h-4", isModelLoaded ? "text-emerald-400" : "text-amber-400 animate-pulse")} />
               <span>{status}</span>
               {!isModelLoaded && modelProgress > 0 && (
-                <span className="text-xs ml-1 text-indigo-400">{Math.round(modelProgress * 100)}%</span>
+                <span className="text-xs ml-1 text-indigo-400">{Math.round(modelProgress)}%</span>
               )}
             </div>
           </div>
@@ -108,11 +124,22 @@ export default function App() {
 
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Upload className="w-5 h-5 text-indigo-400" />
-                  New Document
+                <CardTitle className="flex items-center justify-between text-xl">
+                  <div className="flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-indigo-400" />
+                    New Document
+                  </div>
+                  <label className="text-xs font-medium bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg cursor-pointer transition-colors border border-white/10 border-dashed">
+                    Upload File (.txt, .md)
+                    <input 
+                      type="file" 
+                      accept=".txt,.md" 
+                      className="hidden" 
+                      onChange={handleFileUpload}
+                    />
+                  </label>
                 </CardTitle>
-                <CardDescription>Paste text below to chunk and index it for semantic search.</CardDescription>
+                <CardDescription>Paste text or upload a file to chunk and index it.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <textarea

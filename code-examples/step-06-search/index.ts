@@ -55,7 +55,7 @@ async function main() {
       FROM docs
       ORDER BY similarity DESC
       LIMIT $2
-    `, [JSON.stringify(queryEmbedding)]);
+    `, [JSON.stringify(queryEmbedding), limit]);
 
     return results.rows;
   }

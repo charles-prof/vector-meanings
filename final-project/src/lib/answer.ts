@@ -10,7 +10,7 @@ class AnswerPipeline {
 
   static async getInstance(progress_callback?: ProgressCallback) {
     if (this.instance === null) {
-      this.instance = await pipeline(this.task, this.model, { progress_callback });
+       this.instance = await (pipeline as any)(this.task as any, this.model, { progress_callback });
     }
     return this.instance;
   }
@@ -43,13 +43,12 @@ export class AnswerService {
     `;
 
     // Generate the answer
-    const result = await generator(prompt, {
-      max_new_tokens: 300, // Increased token limit for reasoning
+    const result = await (generator as any)(prompt, {
+      max_new_tokens: 300,
       temperature: 0.1,
       do_sample: false,
     });
 
-    // @ts-expect-error The `generated_text` property is not included in the base type.
     const rawResult = result[0].generated_text;
     return this.parseFinalAnswer(rawResult);
   }

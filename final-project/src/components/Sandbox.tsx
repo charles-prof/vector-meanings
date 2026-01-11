@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Upload, Loader2, Sparkles, BookOpen, Clock, Table, Trash2, RefreshCw, Globe, Tag } from 'lucide-react';
+import { Search, Upload, Loader2, BookOpen, Table, Trash2, RefreshCw, Globe, Database } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { IngestionService } from '../lib/ingestion';
 import { SearchService, type SearchResult } from '../lib/search';
 import { AnswerService } from '../lib/answer';
@@ -20,7 +20,7 @@ interface DocumentRow {
 }
 
 export function Sandbox() {
-  const { isModelLoaded, setStatus, setModelProgress } = useAI();
+  const { isModelLoaded, setModelProgress } = useAI();
   const [ingestText, setIngestText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -236,7 +236,7 @@ export function Sandbox() {
                  </Card>
                )}
 
-               {results.map((res, i) => (
+               {results.map((res) => (
                  <Card key={res.id} className="bg-white/[0.02] border-white/5 hover:border-white/10 transition-all px-4 py-3 flex gap-4 items-center group">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground truncate italic">"{res.content}"</p>

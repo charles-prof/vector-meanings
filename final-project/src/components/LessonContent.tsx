@@ -7,7 +7,6 @@ import { Button } from './ui/button';
 import { useState, useEffect } from 'react';
 
 interface LessonContentProps {
-  id: string;
   filePath: string;
   onComplete: () => void;
   isCompleted: boolean;
@@ -18,7 +17,6 @@ interface LessonContentProps {
 }
 
 export function LessonContent({ 
-  id, 
   filePath, 
   onComplete, 
   isCompleted, 

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { LessonSidebar } from './LessonSidebar';
 import { LessonContent } from './LessonContent';
 import { Sandbox } from './Sandbox';
 import { LESSONS } from '../lib/lessons';
 import { useProgress } from '../hooks/useProgress';
 import { useAI } from '../context/AIContext';
-import { Sparkles, Database, Loader2 } from 'lucide-react';
+import { Sparkles, Database } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function CodelabRunner() {
@@ -74,7 +74,6 @@ export function CodelabRunner() {
             <Sandbox />
           ) : (
             <LessonContent 
-              id={activeLessonId}
               filePath={currentLesson.filePath}
               isCompleted={isCompleted(activeLessonId)}
               onComplete={() => {

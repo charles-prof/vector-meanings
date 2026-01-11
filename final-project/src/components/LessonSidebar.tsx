@@ -1,6 +1,6 @@
-import { LESSONS, Lesson } from '../lib/lessons';
+import { LESSONS } from '../lib/lessons';
 import { cn } from '../lib/utils';
-import { CheckCircle2, Circle, BookOpen, Layout, Database, GraduationCap } from 'lucide-react';
+import { CheckCircle2, Circle, Layout, Database, GraduationCap } from 'lucide-react';
 
 interface LessonSidebarProps {
   activeLessonId: string;

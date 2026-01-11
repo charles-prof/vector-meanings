@@ -11,7 +11,7 @@ class GeneralKnowledgePipeline {
 
   static async getInstance(progress_callback?: ProgressCallback) {
     if (this.instance === null) {
-      this.instance = await pipeline(this.task, this.model, { progress_callback });
+      this.instance = await (pipeline as any)(this.task as any, this.model, { progress_callback });
     }
     return this.instance;
   }
@@ -38,13 +38,12 @@ export class GeneralKnowledgeService {
     `;
 
     // Generate the answer
-    const result = await generator(prompt, {
+    const result = await (generator as any)(prompt, {
       max_new_tokens: 250,
-      temperature: 0.7, // Allow for a bit more creativity for general questions
+      temperature: 0.7,
       do_sample: true,
     });
 
-    // @ts-expect-error The `generated_text` property is not included in the base type.
     return result[0].generated_text;
   }
 }

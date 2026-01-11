@@ -49,6 +49,7 @@ This hands-on codelab teaches you how to build **Retrieval Augmented Generation 
 | 08 | [Optimization](./docs/08-optimization.md) | Performance tuning and best practices |
 | 09 | [Database Viewer](./docs/09-database-viewer.md) | **Bonus**: Inspecting PGlite in real-time |
 | 10 | [From Retrieval to Generation](./docs/10-from-retrieval-to-generation.md) | **Bonus**: Synthesizing answers with RAG |
+| 11 | [Chain-of-Thought Reasoning](./docs/11-chain-of-thought-reasoning.md) | **Bonus**: Improving answers with CoT |
 
 ---
 

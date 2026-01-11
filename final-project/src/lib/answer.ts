@@ -27,28 +27,47 @@ export class AnswerService {
   static async answer(query: string, context: string[], progress_callback?: ProgressCallback): Promise<string> {
     const generator = await AnswerPipeline.getInstance(progress_callback);
 
-    // Construct the prompt for the model
+    // Construct the Chain-of-Thought prompt
     const prompt = `
-      Based on the following context, please answer the user's question.
-      If the context does not contain the answer, state that you don't know.
+      Based on the following context, please reason step-by-step to answer the user's question.
 
       Context:
+      ---
       ${context.join('\n---\n')}
+      ---
 
       Question:
       ${query}
 
-      Answer:
+      Reasoning:
     `;
 
     // Generate the answer
     const result = await generator(prompt, {
-      max_new_tokens: 200,
+      max_new_tokens: 300, // Increased token limit for reasoning
       temperature: 0.1,
       do_sample: false,
     });
 
     // @ts-expect-error The `generated_text` property is not included in the base type.
-    return result[0].generated_text;
+    const rawResult = result[0].generated_text;
+    return this.parseFinalAnswer(rawResult);
+  }
+
+  /**
+   * Parses the model's output to extract the final answer.
+   * @param rawResult The full output from the model, including reasoning.
+   * @returns The extracted final answer.
+   */
+  private static parseFinalAnswer(rawResult: string): string {
+    const finalAnswerMarker = 'Final Answer:';
+    const finalAnswerIndex = rawResult.indexOf(finalAnswerMarker);
+
+    if (finalAnswerIndex !== -1) {
+      return rawResult.substring(finalAnswerIndex + finalAnswerMarker.length).trim();
+    }
+    
+    // Fallback if the model doesn't follow the format perfectly
+    return rawResult.trim();
   }
 }

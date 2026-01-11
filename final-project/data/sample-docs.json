@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Introduction to RAG",
+    "content": "Retrieval-Augmented Generation (RAG) is a technique that combines an LLM with an external knowledge base. It allows the model to retrieve relevant information from the database before generating a response, ensuring more accurate and grounded answers."
+  },
+  {
+    "title": "On-Device AI Benefits",
+    "content": "Running AI models on-device provides significant benefits for privacy, cost, and latency. Since data never leaves the device, user privacy is maintained. There are no API costs per token, and latency is reduced by avoiding network round-trips."
+  },
+  {
+    "title": "Vector Embeddings",
+    "content": "Vector embeddings are numerical representations of data like text or images. In AI, they are used to capture semantic meaning, allowing machines to find similar content by calculating the distance between vectors in a multi-dimensional space."
+  },
+  {
+    "title": "PGlite and pgvector",
+    "content": "PGlite is a WASM-based build of PostgreSQL that can run in the browser. When combined with the pgvector extension, it becomes a powerful local vector database, enabling efficient similarity search for LLM applications."
+  }
+]

@@ -3,11 +3,11 @@ import { VectorDatabase } from './pglite';
 
 export interface DocumentChunk {
   content: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export class IngestionService {
-  static async ingest(content: string, metadata: Record<string, any> = {}): Promise<void> {
+  static async ingest(content: string, metadata: Record<string, unknown> = {}): Promise<void> {
     const db = await VectorDatabase.getInstance();
     const chunks = this.chunkText(content);
 
@@ -20,7 +20,7 @@ export class IngestionService {
     }
   }
 
-  private static chunkText(text: string, size = 500, overlap = 50): string[] {
+  private static chunkText(text: string, size = 250, overlap = 40): string[] {
     const chunks: string[] = [];
     let start = 0;
 

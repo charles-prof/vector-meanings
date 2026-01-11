@@ -6,15 +6,15 @@ export class EmbeddingService {
   static async getPipeline(onProgress?: (progress: number) => void): Promise<FeatureExtractionPipeline> {
     if (this.pipeline) return this.pipeline;
 
-    this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-      progress_callback: (info) => {
+    this.pipeline = await (pipeline as any)('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+      progress_callback: (info: any) => {
         if (info.status === 'progress' && info.progress !== undefined) {
           onProgress?.(info.progress);
         }
       },
     });
 
-    return this.pipeline;
+    return this.pipeline!;
   }
 
   static async generate(text: string): Promise<number[]> {

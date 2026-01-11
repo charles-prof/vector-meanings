@@ -345,7 +345,7 @@ export default function App() {
                       <thead>
                         <tr className="bg-white/5 border-b border-white/10 uppercase text-[10px] tracking-widest text-muted-foreground font-bold">
                           <th className="px-6 py-4 font-bold">ID</th>
-                          <th className="px-6 py-4 font-bold">Content (Truncated)</th>
+                          <th className="px-6 py-4 font-bold">Content</th>
                           <th className="px-6 py-4 font-bold">Vector (MiniLM-L6)</th>
                           <th className="px-6 py-4 font-bold">Created</th>
                         </tr>
@@ -354,7 +354,7 @@ export default function App() {
                         {dbData.length > 0 ? dbData.map((row) => (
                            <tr key={row.id} className="hover:bg-white/[0.02] transition-colors group">
                               <td className="px-6 py-4 font-mono text-indigo-400">{row.id}</td>
-                              <td className="px-6 py-4 max-w-md truncate text-muted-foreground">{row.content}</td>
+                              <td className="px-6 py-4 text-muted-foreground whitespace-pre-wrap break-words">{row.content}</td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
                                   <div className="flex gap-0.5">

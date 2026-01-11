@@ -21,6 +21,11 @@ export class SearchService {
       [JSON.stringify(embedding), limit]
     );
 
-    return result.rows as unknown as SearchResult[];
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      content: row.content,
+      metadata: row.metadata,
+      similarity: row.similarity
+    }));
   }
 }

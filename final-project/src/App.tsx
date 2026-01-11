@@ -7,6 +7,7 @@ import { IngestionService } from './lib/ingestion';
 import { SearchService, type SearchResult } from './lib/search';
 import { EmbeddingService } from './lib/embeddings';
 import { cn } from './lib/utils';
+import { VectorDatabase } from './lib/pglite';
 
 export default function App() {
   const [ingestText, setIngestText] = useState('');
@@ -92,9 +93,13 @@ export default function App() {
   const fetchDbData = async () => {
     setIsDbLoading(true);
     try {
-      const db = await (await import('./lib/pglite')).VectorDatabase.getInstance();
+      const db = await VectorDatabase.getInstance();
       const result = await db.query('SELECT * FROM documents ORDER BY id DESC LIMIT 50');
-      setDbData(result.rows);
+      const formatted = result.rows.map((row: any) => ({
+        ...row,
+        embedding: row.embedding ? Array.from(row.embedding) : []
+      }));
+      setDbData(formatted);
     } catch (error) {
       console.error(error);
     } finally {
@@ -105,7 +110,7 @@ export default function App() {
   const clearDatabase = async () => {
     if (!confirm('Are you sure? This will delete all ingested knowledge.')) return;
     try {
-      const db = await (await import('./lib/pglite')).VectorDatabase.getInstance();
+      const db = await VectorDatabase.getInstance();
       await db.exec('DELETE FROM documents');
       await fetchDbData();
       setResults([]);
@@ -353,15 +358,22 @@ export default function App() {
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
                                   <div className="flex gap-0.5">
-                                    {[0,1,2,3,4].map(idx => (
-                                      <div 
-                                        key={idx} 
-                                        className="w-1.5 h-4 rounded-sm bg-indigo-500/40" 
-                                        style={{ height: `${Math.abs(row.embedding?.[idx] || 0.5) * 40}px` }}
-                                      />
-                                    ))}
+                                    {[0,1,2,3,4].map(idx => {
+                                      const val = Array.isArray(row.embedding) ? row.embedding[idx] : 0.5;
+                                      return (
+                                        <div 
+                                          key={idx} 
+                                          className="w-1.5 h-4 rounded-sm bg-indigo-500/40" 
+                                          style={{ height: `${Math.abs(Number(val) || 0.5) * 40}px` }}
+                                        />
+                                      );
+                                    })}
                                   </div>
-                                  <span className="text-[10px] text-muted-foreground font-mono">[{row.embedding?.slice(0, 3).map((n: number) => n.toFixed(2)).join(',')}...]</span>
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    [{Array.isArray(row.embedding) 
+                                      ? row.embedding.slice(0, 3).map((n: any) => Number(n).toFixed(2)).join(',')
+                                      : '...'}]
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-[10px] text-muted-foreground font-mono">
